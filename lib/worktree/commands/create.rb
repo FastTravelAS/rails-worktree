@@ -1,9 +1,10 @@
 module RailsWorktree
   module Commands
     class Create
-      def initialize(args)
+      def initialize(args, skip_seeds: false)
         @worktree_name = args[0]
         @base_branch = args[1]
+        @skip_seeds = skip_seeds
       end
 
       def run
@@ -29,12 +30,14 @@ module RailsWorktree
         puts "Initializing worktree..."
 
         Dir.chdir(worktree_path) do
-          Init.new([@worktree_name]).run
+          Init.new([@worktree_name], skip_seeds: @skip_seeds).run
         end
 
         puts ""
         puts "To switch to the new worktree:"
         puts "  cd #{absolute_path}"
+        puts ""
+        puts "To start the development server: bin/dev"
       end
 
       private

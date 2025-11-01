@@ -3,8 +3,9 @@ require "fileutils"
 module RailsWorktree
   module Commands
     class Init
-      def initialize(args)
+      def initialize(args, skip_seeds: false)
         @worktree_name = args[0]
+        @skip_seeds = skip_seeds
       end
 
       def run
@@ -35,8 +36,6 @@ module RailsWorktree
         puts "  Development database: #{@dev_database_name}"
         puts "  Test database: #{@test_database_name}"
         puts "  Configuration files copied"
-        puts ""
-        puts "To start the development server: bin/dev"
       end
 
       private
@@ -156,8 +155,12 @@ module RailsWorktree
         system("RAILS_ENV=development bin/rails db:migrate") || puts("Warning: Could not run migrations")
         system("RAILS_ENV=test bin/rails db:migrate") || puts("Warning: Could not run test migrations")
 
-        puts "Seeding development database..."
-        system("RAILS_ENV=development bin/rails db:seed") || puts("Warning: Could not seed database")
+        unless @skip_seeds
+          puts "Seeding development database..."
+          system("RAILS_ENV=development bin/rails db:seed > /dev/null 2>&1") || puts("Warning: Could not seed database")
+        else
+          puts "Skipping database seeding..."
+        end
       end
     end
   end

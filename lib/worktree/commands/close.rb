@@ -23,6 +23,7 @@ module RailsWorktree
         puts ""
 
         drop_databases
+        remove_node_modules
         remove_worktree
         prune_worktrees
         delete_branch
@@ -30,6 +31,7 @@ module RailsWorktree
         puts ""
         puts "✓ Worktree '#{@worktree_name}' closed successfully!"
         puts "  Databases dropped: #{@dev_database_name}, #{@test_database_name}"
+        puts "  node_modules removed"
         puts "  Worktree removed from #{@worktree_path}"
         puts "  Branch #{@worktree_name} deleted"
       end
@@ -54,12 +56,16 @@ module RailsWorktree
       end
 
       def get_db_prefix
+        # Try to get prefix from database.yml first
         database_yml = File.join(@main_worktree, "config/database.yml")
-        return nil unless File.exist?(database_yml)
+        if File.exist?(database_yml)
+          content = File.read(database_yml)
+          match = content.match(/database:\s*(\w+)_development/)
+          return match[1] if match
+        end
 
-        content = File.read(database_yml)
-        match = content.match(/database:\s*(\w+)_development/)
-        match ? match[1] : nil
+        # Fall back to using the Rails app name (directory name of main worktree)
+        File.basename(@main_worktree)
       end
 
       def detect_paths
@@ -78,24 +84,25 @@ module RailsWorktree
         puts "Dropping databases..."
 
         Dir.chdir(@worktree_dir) do
-          env_file = ".env"
-          env_content = File.exist?(env_file) ? File.read(env_file) : ""
-
           # Drop development database
-          if env_content.match?(/^DATABASE_NAME_DEVELOPMENT=#{@dev_database_name}/)
-            system("RAILS_ENV=development bin/rails db:drop 2>/dev/null") ||
-              puts("Warning: Could not drop development database #{@dev_database_name}")
-          else
-            puts "Warning: DATABASE_NAME_DEVELOPMENT not set in .env, skipping development database drop"
-          end
+          system("RAILS_ENV=development bin/rails db:drop 2>/dev/null") ||
+            puts("Warning: Could not drop development database #{@dev_database_name}")
 
           # Drop test database
-          if env_content.match?(/^DATABASE_NAME_TEST=#{@test_database_name}/)
-            system("RAILS_ENV=test bin/rails db:drop 2>/dev/null") ||
-              puts("Warning: Could not drop test database #{@test_database_name}")
-          else
-            puts "Warning: DATABASE_NAME_TEST not set in .env, skipping test database drop"
-          end
+          system("RAILS_ENV=test bin/rails db:drop 2>/dev/null") ||
+            puts("Warning: Could not drop test database #{@test_database_name}")
+        end
+      end
+
+      def remove_node_modules
+        puts "Removing node_modules..."
+
+        node_modules_path = File.join(@worktree_dir, "node_modules")
+        if Dir.exist?(node_modules_path)
+          FileUtils.rm_rf(node_modules_path)
+          puts "node_modules removed"
+        else
+          puts "No node_modules to remove"
         end
       end
 
