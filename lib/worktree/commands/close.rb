@@ -1,6 +1,6 @@
 require "fileutils"
 
-module Worktree
+module RailsWorktree
   module Commands
     class Close
       def initialize(args)

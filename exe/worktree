@@ -1,5 +1,5 @@
 #!/usr/bin/env ruby
 
-require "worktree"
+require "rails-worktree"
 
-Worktree::CLI.run(ARGV)
+RailsWorktree::CLI.run(ARGV)

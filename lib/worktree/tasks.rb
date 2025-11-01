@@ -12,9 +12,9 @@ namespace :worktree do
       #!/usr/bin/env ruby
 
       require "bundler/setup"
-      require "worktree"
+      require "rails-worktree"
 
-      Worktree::CLI.run(ARGV)
+      RailsWorktree::CLI.run(ARGV)
     RUBY
 
     File.chmod(0755, binstub_path)

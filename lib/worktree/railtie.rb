@@ -1,6 +1,6 @@
 require "rails/railtie"
 
-module Worktree
+module RailsWorktree
   class Railtie < Rails::Railtie
     railtie_name :worktree
 
@@ -20,9 +20,9 @@ module Worktree
             #!/usr/bin/env ruby
 
             require "bundler/setup"
-            require "worktree"
+            require "rails-worktree"
 
-            Worktree::CLI.run(ARGV)
+            RailsWorktree::CLI.run(ARGV)
           RUBY
 
           FileUtils.chmod("+x", binstub_path)

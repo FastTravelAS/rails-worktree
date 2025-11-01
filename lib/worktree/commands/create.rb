@@ -1,4 +1,4 @@
-module Worktree
+module RailsWorktree
   module Commands
     class Create
       def initialize(args)

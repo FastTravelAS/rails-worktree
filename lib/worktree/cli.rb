@@ -1,4 +1,4 @@
-module Worktree
+module RailsWorktree
   class CLI
     def self.run(args)
       new(args).run

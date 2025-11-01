@@ -7,6 +7,6 @@ require_relative "worktree/commands/close"
 # Load Railtie only if Rails is available
 require_relative "worktree/railtie" if defined?(Rails::Railtie)
 
-module Worktree
+module RailsWorktree
   class Error < StandardError; end
 end
