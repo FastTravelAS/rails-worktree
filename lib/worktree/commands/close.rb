@@ -13,7 +13,8 @@ module Worktree
         detect_worktree_name unless @worktree_name
 
         @db_prefix = get_db_prefix
-        @database_name = "#{@db_prefix}_#{@worktree_name}"
+        @dev_database_name = "#{@db_prefix}_#{@worktree_name}_development"
+        @test_database_name = "#{@db_prefix}_#{@worktree_name}_test"
 
         detect_paths
 
@@ -21,14 +22,14 @@ module Worktree
         puts "Main worktree: #{@main_worktree}"
         puts ""
 
-        drop_database
+        drop_databases
         remove_worktree
         prune_worktrees
         delete_branch
 
         puts ""
         puts "✓ Worktree '#{@worktree_name}' closed successfully!"
-        puts "  Database #{@database_name} dropped"
+        puts "  Databases dropped: #{@dev_database_name}, #{@test_database_name}"
         puts "  Worktree removed from #{@worktree_path}"
         puts "  Branch #{@worktree_name} deleted"
       end
@@ -73,16 +74,27 @@ module Worktree
         end
       end
 
-      def drop_database
-        puts "Dropping database #{@database_name}..."
+      def drop_databases
+        puts "Dropping databases..."
 
         Dir.chdir(@worktree_dir) do
           env_file = ".env"
-          if File.exist?(env_file) && File.read(env_file).match?(/^DATABASE_NAME=#{@database_name}/)
+          env_content = File.exist?(env_file) ? File.read(env_file) : ""
+
+          # Drop development database
+          if env_content.match?(/^DATABASE_NAME_DEVELOPMENT=#{@dev_database_name}/)
             system("RAILS_ENV=development bin/rails db:drop 2>/dev/null") ||
-              puts("Warning: Could not drop database #{@database_name}")
+              puts("Warning: Could not drop development database #{@dev_database_name}")
           else
-            puts "Warning: DATABASE_NAME not set to #{@database_name} in .env, skipping database drop"
+            puts "Warning: DATABASE_NAME_DEVELOPMENT not set in .env, skipping development database drop"
+          end
+
+          # Drop test database
+          if env_content.match?(/^DATABASE_NAME_TEST=#{@test_database_name}/)
+            system("RAILS_ENV=test bin/rails db:drop 2>/dev/null") ||
+              puts("Warning: Could not drop test database #{@test_database_name}")
+          else
+            puts "Warning: DATABASE_NAME_TEST not set in .env, skipping test database drop"
           end
         end
       end

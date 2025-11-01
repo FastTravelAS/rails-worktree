@@ -14,6 +14,7 @@ module Worktree
 
         @base_branch ||= current_branch
         worktree_path = "../#{@worktree_name}"
+        absolute_path = File.expand_path(worktree_path)
 
         puts "Creating worktree '#{@worktree_name}' from branch '#{@base_branch}' at #{worktree_path}..."
 
@@ -30,6 +31,10 @@ module Worktree
         Dir.chdir(worktree_path) do
           Init.new([@worktree_name]).run
         end
+
+        puts ""
+        puts "To switch to the new worktree:"
+        puts "  cd #{absolute_path}"
       end
 
       private

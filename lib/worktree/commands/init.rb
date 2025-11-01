@@ -16,21 +16,24 @@ module Worktree
 
         @main_worktree = get_main_worktree
         @db_prefix = get_db_prefix
-        @database_name = "#{@db_prefix}_#{@worktree_name}"
+        @dev_database_name = "#{@db_prefix}_#{@worktree_name}_development"
+        @test_database_name = "#{@db_prefix}_#{@worktree_name}_test"
 
         puts "Initializing worktree '#{@worktree_name}'..."
         puts "Main worktree: #{@main_worktree}"
-        puts "Database: #{@database_name}"
+        puts "Development database: #{@dev_database_name}"
+        puts "Test database: #{@test_database_name}"
 
         copy_config_files
-        set_database_name
+        set_database_names
         update_database_yml
         copy_node_modules
         setup_database
 
         puts ""
         puts "✓ Worktree initialized successfully!"
-        puts "  Database: #{@database_name}"
+        puts "  Development database: #{@dev_database_name}"
+        puts "  Test database: #{@test_database_name}"
         puts "  Configuration files copied"
         puts ""
         puts "To start the development server: bin/dev"
@@ -73,32 +76,57 @@ module Worktree
         end
       end
 
-      def set_database_name
-        puts "Setting DATABASE_NAME=#{@database_name} in .env..."
+      def set_database_names
+        puts "Setting database names in .env..."
 
         env_file = ".env"
         return unless File.exist?(env_file)
 
         content = File.read(env_file)
-        if content.match?(/^DATABASE_NAME=/)
-          content.gsub!(/^DATABASE_NAME=.*$/, "DATABASE_NAME=#{@database_name}")
+
+        # Set development database name
+        if content.match?(/^DATABASE_NAME_DEVELOPMENT=/)
+          content.gsub!(/^DATABASE_NAME_DEVELOPMENT=.*$/, "DATABASE_NAME_DEVELOPMENT=#{@dev_database_name}")
         else
-          content += "\nDATABASE_NAME=#{@database_name}\n"
+          content += "\nDATABASE_NAME_DEVELOPMENT=#{@dev_database_name}\n"
+        end
+
+        # Set test database name
+        if content.match?(/^DATABASE_NAME_TEST=/)
+          content.gsub!(/^DATABASE_NAME_TEST=.*$/, "DATABASE_NAME_TEST=#{@test_database_name}")
+        else
+          content += "DATABASE_NAME_TEST=#{@test_database_name}\n"
         end
 
         File.write(env_file, content)
       end
 
       def update_database_yml
-        puts "Updating database.yml to use DATABASE_NAME..."
+        puts "Updating database.yml to use separate database names..."
 
         database_yml = "config/database.yml"
         return unless File.exist?(database_yml)
 
         content = File.read(database_yml)
+
+        # Update development database
+        content.gsub!(
+          /database:\s*<%= ENV\.fetch\("DATABASE_NAME",\s*"#{@db_prefix}_development"\s*%>/,
+          "database: <%= ENV.fetch(\"DATABASE_NAME_DEVELOPMENT\", \"#{@db_prefix}_development\") %>"
+        )
         content.gsub!(
           /database:\s*#{@db_prefix}_development/,
-          "database: <%= ENV.fetch(\"DATABASE_NAME\", \"#{@db_prefix}_development\") %>"
+          "database: <%= ENV.fetch(\"DATABASE_NAME_DEVELOPMENT\", \"#{@db_prefix}_development\") %>"
+        )
+
+        # Update test database
+        content.gsub!(
+          /database:\s*<%= ENV\.fetch\("DATABASE_NAME",\s*"#{@db_prefix}_test"\s*%>/,
+          "database: <%= ENV.fetch(\"DATABASE_NAME_TEST\", \"#{@db_prefix}_test\") %>"
+        )
+        content.gsub!(
+          /database:\s*#{@db_prefix}_test/,
+          "database: <%= ENV.fetch(\"DATABASE_NAME_TEST\", \"#{@db_prefix}_test\") %>"
         )
 
         File.write(database_yml, content)
@@ -116,13 +144,15 @@ module Worktree
       end
 
       def setup_database
-        puts "Creating database #{@database_name}..."
-        system("RAILS_ENV=development bin/rails db:create") || puts("Warning: Could not create database")
+        puts "Creating databases..."
+        system("RAILS_ENV=development bin/rails db:create") || puts("Warning: Could not create development database")
+        system("RAILS_ENV=test bin/rails db:create") || puts("Warning: Could not create test database")
 
         puts "Running migrations..."
         system("RAILS_ENV=development bin/rails db:migrate") || puts("Warning: Could not run migrations")
+        system("RAILS_ENV=test bin/rails db:migrate") || puts("Warning: Could not run test migrations")
 
-        puts "Seeding database..."
+        puts "Seeding development database..."
         system("RAILS_ENV=development bin/rails db:seed") || puts("Warning: Could not seed database")
       end
     end
