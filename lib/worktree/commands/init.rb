@@ -47,12 +47,16 @@ module RailsWorktree
       end
 
       def get_db_prefix
+        # Try to get prefix from database.yml first
         database_yml = File.join(@main_worktree, "config/database.yml")
-        return nil unless File.exist?(database_yml)
+        if File.exist?(database_yml)
+          content = File.read(database_yml)
+          match = content.match(/database:\s*(\w+)_development/)
+          return match[1] if match
+        end
 
-        content = File.read(database_yml)
-        match = content.match(/database:\s*(\w+)_development/)
-        match ? match[1] : nil
+        # Fall back to using the Rails app name (directory name of main worktree)
+        File.basename(@main_worktree)
       end
 
       def copy_config_files
