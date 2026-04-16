@@ -98,6 +98,66 @@ class InitTest < Minitest::Test
     end
   end
 
+  def test_update_database_yml_no_double_substitution_when_worktree_name_starts_with_test
+    @init.instance_variable_set(:@worktree_name, "test-feature")
+    @init.instance_variable_set(:@dev_database_name, "myapp_test-feature_development")
+    @init.instance_variable_set(:@test_database_name, "myapp_test-feature_test")
+
+    Dir.chdir(@worktree_dir) do
+      FileUtils.mkdir_p("config")
+      File.write("config/database.yml", <<~YAML)
+        default: &default
+          adapter: postgresql
+
+        development:
+          <<: *default
+          database: myapp_development
+
+        test:
+          <<: *default
+          database: myapp_test
+      YAML
+
+      @init.send(:update_database_yml)
+      content = File.read("config/database.yml")
+
+      assert_includes content, "database: myapp_test-feature_development"
+      assert_includes content, "database: myapp_test-feature_test"
+      refute_includes content, "test-feature_test-feature"
+    end
+  end
+
+  def test_update_database_yml_no_double_substitution_with_queue_databases
+    @init.instance_variable_set(:@worktree_name, "test-feature")
+    @init.instance_variable_set(:@dev_database_name, "myapp_test-feature_development")
+    @init.instance_variable_set(:@test_database_name, "myapp_test-feature_test")
+
+    Dir.chdir(@worktree_dir) do
+      FileUtils.mkdir_p("config")
+      File.write("config/database.yml", <<~YAML)
+        development:
+          primary:
+            database: myapp_development
+          queue:
+            database: myapp_development_queue
+        test:
+          primary:
+            database: myapp_test
+          queue:
+            database: myapp_test_queue
+      YAML
+
+      @init.send(:update_database_yml)
+      content = File.read("config/database.yml")
+
+      assert_includes content, "database: myapp_test-feature_development"
+      assert_includes content, "database: myapp_test-feature_development_queue"
+      assert_includes content, "database: myapp_test-feature_test"
+      assert_includes content, "database: myapp_test-feature_test_queue"
+      refute_includes content, "test-feature_test-feature"
+    end
+  end
+
   def test_update_database_yml_skips_when_no_file
     Dir.chdir(@worktree_dir) do
       @init.send(:update_database_yml) # should not raise

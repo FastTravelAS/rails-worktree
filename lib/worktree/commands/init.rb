@@ -112,13 +112,17 @@ module RailsWorktree
 
         content = File.read(database_yml)
 
-        # Replace original database names with worktree-specific ones wherever they appear
-        # This handles hardcoded names, ERB defaults, env var defaults, etc.
-        original_dev = "#{@db_prefix}_development"
-        original_test = "#{@db_prefix}_test"
-
-        content.gsub!(original_dev, @dev_database_name)
-        content.gsub!(original_test, @test_database_name)
+        # Use a single-pass replacement to avoid one substitution creating
+        # a substring that matches the other pattern (e.g., replacing
+        # "app_development" first produces "app_test-branch_development",
+        # which contains "app_test" and would be wrongly matched by a
+        # second gsub for the test pattern).
+        replacements = {
+          "#{@db_prefix}_development" => @dev_database_name,
+          "#{@db_prefix}_test" => @test_database_name
+        }
+        pattern = Regexp.union(replacements.keys)
+        content.gsub!(pattern) { |match| replacements[match] }
 
         File.write(database_yml, content)
       end
