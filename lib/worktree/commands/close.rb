@@ -22,11 +22,11 @@ module RailsWorktree
         puts "Main worktree: #{@main_worktree}"
         puts ""
 
-        # Move to main worktree early so we're not inside the directory we're about to delete
-        Dir.chdir(@main_worktree) unless @in_main_repo
-
         drop_databases
         remove_node_modules
+
+        # Move to main worktree so we're not inside the directory we're about to delete
+        Dir.chdir(@main_worktree) unless @in_main_repo
         remove_worktree
         prune_worktrees
         delete_branch
@@ -91,16 +91,13 @@ module RailsWorktree
       def drop_databases
         puts "Dropping databases..."
 
-        if system("dropdb", "--if-exists", @dev_database_name)
-          puts "Dropped database '#{@dev_database_name}'"
-        else
-          puts "Warning: Could not drop development database #{@dev_database_name}"
-        end
-
-        if system("dropdb", "--if-exists", @test_database_name)
-          puts "Dropped database '#{@test_database_name}'"
-        else
-          puts "Warning: Could not drop test database #{@test_database_name}"
+        Dir.chdir(@worktree_path) do
+          if File.executable?("bin/rails")
+            system({ "DISABLE_DATABASE_ENVIRONMENT_CHECK" => "1" }, "bin/rails", "db:drop") ||
+              puts("Warning: Could not drop databases")
+          else
+            puts "Warning: bin/rails not found in worktree, skipping database drop"
+          end
         end
       end
 

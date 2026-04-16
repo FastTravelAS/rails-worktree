@@ -13,7 +13,7 @@ class CloseTest < Minitest::Test
 
   # --- drop_databases ---
 
-  def test_drop_databases_uses_dropdb_with_correct_names
+  def test_drop_databases_uses_rails_db_drop
     close = build_close("my-feature", db_prefix: "myapp")
 
     system_calls = []
@@ -22,29 +22,20 @@ class CloseTest < Minitest::Test
       true
     end
 
-    close.send(:drop_databases)
-
-    assert_equal 2, system_calls.length
-
-    assert_equal ["dropdb", "--if-exists", "myapp_my-feature_development"], system_calls[0]
-    assert_equal ["dropdb", "--if-exists", "myapp_my-feature_test"], system_calls[1]
-  end
-
-  def test_drop_databases_does_not_use_rails
-    close = build_close("my-feature", db_prefix: "myapp")
-
-    system_calls = []
-    close.define_singleton_method(:system) do |*args|
-      system_calls << args
-      true
-    end
+    # Create a fake bin/rails in the worktree path
+    worktree_path = close.instance_variable_get(:@worktree_path)
+    FileUtils.mkdir_p(File.join(worktree_path, "bin"))
+    bin_rails = File.join(worktree_path, "bin/rails")
+    File.write(bin_rails, "#!/bin/bash\n")
+    File.chmod(0755, bin_rails)
 
     close.send(:drop_databases)
 
-    system_calls.each do |call|
-      args_str = call.map(&:to_s).join(" ")
-      refute_includes args_str, "rails", "drop_databases should not invoke Rails"
-    end
+    assert_equal 1, system_calls.length
+    env, cmd, arg = system_calls[0]
+    assert_equal "1", env["DISABLE_DATABASE_ENVIRONMENT_CHECK"]
+    assert_equal "bin/rails", cmd
+    assert_equal "db:drop", arg
   end
 
   def test_drop_databases_warns_on_failure
@@ -54,10 +45,26 @@ class CloseTest < Minitest::Test
       false
     end
 
+    worktree_path = close.instance_variable_get(:@worktree_path)
+    FileUtils.mkdir_p(File.join(worktree_path, "bin"))
+    bin_rails = File.join(worktree_path, "bin/rails")
+    File.write(bin_rails, "#!/bin/bash\n")
+    File.chmod(0755, bin_rails)
+
     output = capture_io { close.send(:drop_databases) }.first
 
-    assert_includes output, "Warning: Could not drop development database"
-    assert_includes output, "Warning: Could not drop test database"
+    assert_includes output, "Warning: Could not drop databases"
+  end
+
+  def test_drop_databases_warns_when_no_bin_rails
+    close = build_close("my-feature")
+
+    worktree_path = close.instance_variable_get(:@worktree_path)
+    FileUtils.mkdir_p(worktree_path)
+
+    output = capture_io { close.send(:drop_databases) }.first
+
+    assert_includes output, "Warning: bin/rails not found"
   end
 
   # --- database name computation ---
