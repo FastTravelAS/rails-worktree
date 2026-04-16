@@ -79,7 +79,7 @@ module RailsWorktree
       def detect_paths
         if @current_dir == @main_worktree
           @in_main_repo = true
-          @worktree_path = File.join(File.dirname(@main_worktree), @worktree_name)
+          @worktree_path = File.join(@main_worktree, ".worktrees", @worktree_name)
           @worktree_dir = @worktree_path
         else
           @in_main_repo = false

@@ -1,3 +1,5 @@
+require "fileutils"
+
 module RailsWorktree
   module Commands
     class Create
@@ -14,8 +16,12 @@ module RailsWorktree
         end
 
         @base_branch ||= current_branch
-        worktree_path = "../#{@worktree_name}"
+        worktree_dir = ".worktrees"
+        worktree_path = "#{worktree_dir}/#{@worktree_name}"
         absolute_path = File.expand_path(worktree_path)
+
+        ensure_gitignored(worktree_dir)
+        FileUtils.mkdir_p(worktree_dir)
 
         puts "Creating worktree '#{@worktree_name}' from branch '#{@base_branch}' at #{worktree_path}..."
 
@@ -44,6 +50,17 @@ module RailsWorktree
 
       def current_branch
         `git branch --show-current`.strip
+      end
+
+      def ensure_gitignored(dir)
+        gitignore = ".gitignore"
+        pattern = "/#{dir}"
+
+        if File.exist?(gitignore)
+          return if File.readlines(gitignore).any? { |line| line.strip == pattern }
+        end
+
+        File.open(gitignore, "a") { |f| f.puts pattern }
       end
     end
   end
