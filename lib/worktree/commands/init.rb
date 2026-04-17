@@ -65,8 +65,10 @@ module RailsWorktree
           ".env",
           "config/database.yml",
           "Procfile.dev",
-          "config/credentials/development.key"
+          "config/master.key"
         ]
+
+        files_to_copy += Dir.glob("config/credentials/*", base: @main_worktree)
 
         files_to_copy.each do |file|
           source = File.join(@main_worktree, file)

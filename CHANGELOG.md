@@ -6,6 +6,7 @@
 
 - Database name double-substitution when worktree name starts with "test" (e.g. `app_test-worktree_test-worktree_development`). Replaced sequential `gsub!` calls with single-pass `Regexp.union` replacement
 - Database drop during close now uses `bin/rails db:drop` instead of bare `dropdb`, picking up connection settings from `database.yml`
+- Worktree init now copies `config/master.key` and all files under `config/credentials/` from the main worktree, picking up env-specific keys like `test.key`/`test.yml.enc` instead of only `development.key`
 
 ### Changed
 

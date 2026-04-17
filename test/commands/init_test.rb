@@ -335,4 +335,19 @@ class InitTest < Minitest::Test
       @init.send(:copy_config_files) # should not raise
     end
   end
+
+  def test_copy_config_files_copies_all_credentials
+    Dir.chdir(@worktree_dir) do
+      FileUtils.mkdir_p(File.join(@main_worktree, "config/credentials"))
+      File.write(File.join(@main_worktree, "config/credentials/development.key"), "dev-key")
+      File.write(File.join(@main_worktree, "config/credentials/test.key"), "test-key")
+      File.write(File.join(@main_worktree, "config/credentials/test.yml.enc"), "test-enc")
+
+      @init.send(:copy_config_files)
+
+      assert_equal "dev-key", File.read("config/credentials/development.key")
+      assert_equal "test-key", File.read("config/credentials/test.key")
+      assert_equal "test-enc", File.read("config/credentials/test.yml.enc")
+    end
+  end
 end
