@@ -158,6 +158,83 @@ class InitTest < Minitest::Test
     end
   end
 
+  def test_update_database_yml_skips_rewrite_when_env_vars_cover_database_names
+    Dir.chdir(@worktree_dir) do
+      File.write(".env", <<~ENV)
+        DATABASE_NAME_DEVELOPMENT=myapp_my-feature_development
+        DATABASE_NAME_TEST=myapp_my-feature_test
+      ENV
+      FileUtils.mkdir_p("config")
+      original = <<~YAML
+        default: &default
+          adapter: postgresql
+
+        development:
+          <<: *default
+          database: <%= ENV.fetch("DATABASE_NAME_DEVELOPMENT", "myapp_development") %>
+
+        test:
+          <<: *default
+          database: <%= ENV.fetch("DATABASE_NAME_TEST", "myapp_test") %>
+      YAML
+      File.write("config/database.yml", original)
+
+      @init.send(:update_database_yml)
+
+      # .env controls the database names, so the tracked file stays pristine
+      assert_equal original, File.read("config/database.yml")
+    end
+  end
+
+  def test_update_database_yml_rewrites_when_env_file_missing_even_with_env_fetch
+    Dir.chdir(@worktree_dir) do
+      # No .env — env vars are not guaranteed to be set, keep rewriting
+      FileUtils.mkdir_p("config")
+      File.write("config/database.yml", <<~YAML)
+        development:
+          database: <%= ENV.fetch("DATABASE_NAME_DEVELOPMENT", "myapp_development") %>
+        test:
+          database: <%= ENV.fetch("DATABASE_NAME_TEST", "myapp_test") %>
+      YAML
+
+      @init.send(:update_database_yml)
+      content = File.read("config/database.yml")
+
+      assert_includes content, "myapp_my-feature_development"
+      assert_includes content, "myapp_my-feature_test"
+    end
+  end
+
+  def test_update_database_yml_rewrites_when_hardcoded_names_remain_alongside_env_fetch
+    Dir.chdir(@worktree_dir) do
+      File.write(".env", <<~ENV)
+        DATABASE_NAME_DEVELOPMENT=myapp_my-feature_development
+        DATABASE_NAME_TEST=myapp_my-feature_test
+      ENV
+      FileUtils.mkdir_p("config")
+      # Primary uses env vars, but Solid Queue databases are hardcoded —
+      # those still need the rewrite for isolation
+      File.write("config/database.yml", <<~YAML)
+        development:
+          primary:
+            database: <%= ENV.fetch("DATABASE_NAME_DEVELOPMENT", "myapp_development") %>
+          queue:
+            database: myapp_development_queue
+        test:
+          primary:
+            database: <%= ENV.fetch("DATABASE_NAME_TEST", "myapp_test") %>
+          queue:
+            database: myapp_test_queue
+      YAML
+
+      @init.send(:update_database_yml)
+      content = File.read("config/database.yml")
+
+      assert_includes content, "database: myapp_my-feature_development_queue"
+      assert_includes content, "database: myapp_my-feature_test_queue"
+    end
+  end
+
   def test_update_database_yml_skips_when_no_file
     Dir.chdir(@worktree_dir) do
       @init.send(:update_database_yml) # should not raise

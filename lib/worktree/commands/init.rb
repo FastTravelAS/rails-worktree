@@ -107,12 +107,23 @@ module RailsWorktree
       end
 
       def update_database_yml
-        puts "Updating database.yml to use separate database names..."
-
         database_yml = "config/database.yml"
         return unless File.exist?(database_yml)
 
         content = File.read(database_yml)
+
+        # If database.yml already reads DATABASE_NAME_DEVELOPMENT /
+        # DATABASE_NAME_TEST and the worktree's .env sets them (written by
+        # set_database_names above), the env vars fully control database
+        # selection. Rewriting the fallback defaults would only dirty a
+        # tracked file — risking branch-specific names being committed to
+        # the shared database.yml — so leave it untouched.
+        if env_vars_cover_database_names?(content)
+          puts "database.yml reads DATABASE_NAME_* from .env, skipping rewrite"
+          return
+        end
+
+        puts "Updating database.yml to use separate database names..."
 
         # Use a single-pass replacement to avoid one substitution creating
         # a substring that matches the other pattern (e.g., replacing
@@ -127,6 +138,26 @@ module RailsWorktree
         content.gsub!(pattern) { |match| replacements[match] }
 
         File.write(database_yml, content)
+      end
+
+      # True when the DATABASE_NAME_* env vars make a database.yml rewrite
+      # unnecessary: .env sets both vars, database.yml references both, and
+      # every line mentioning the original database names is an ENV-based
+      # fallback (a hardcoded name on any line — e.g. a Solid Queue
+      # "database: myapp_development_queue" — still needs the rewrite).
+      def env_vars_cover_database_names?(database_yml_content)
+        return false unless File.exist?(".env")
+
+        env_content = File.read(".env")
+        vars_set = %w[DATABASE_NAME_DEVELOPMENT DATABASE_NAME_TEST].all? do |var|
+          database_yml_content.include?(var) && env_content.match?(/^#{var}=/)
+        end
+        return false unless vars_set
+
+        original_names = Regexp.union("#{@db_prefix}_development", "#{@db_prefix}_test")
+        database_yml_content.each_line.all? do |line|
+          !line.match?(original_names) || line.include?("ENV")
+        end
       end
 
       def copy_node_modules
