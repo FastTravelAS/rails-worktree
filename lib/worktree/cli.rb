@@ -14,6 +14,15 @@ module RailsWorktree
         exit 1
       end
 
+      if @args[0] == "exec"
+        @args.shift
+        return Commands::Exec.new(@args).run
+      end
+      if @args[0] == "verify"
+        Context.new.verify(push: @args.include?("--push"))
+        return
+      end
+
       # Extract flags
       @skip_seeds = @args.delete("--skip-seeds")
 
@@ -30,20 +39,27 @@ module RailsWorktree
         # Default: create worktree
         Commands::Create.new(@args, skip_seeds: @skip_seeds).run
       end
+    rescue Error => error
+      warn "Error: #{error.message}"
+      exit 1
     end
 
     private
 
     def print_usage
       puts <<~USAGE
-        Usage: worktree <name> [base-branch] [options]
+        Usage: worktree <name> <base-branch> [options]
                worktree --close [worktree-name]
+               worktree exec -- <command> [arguments]
+               worktree verify [--push]
                worktree --init <worktree-name> [options]
 
         Creates a new git worktree and initializes it with configuration
 
         Commands:
           <name>              Create a new worktree with the given name
+          exec -- COMMAND     Run a command with verified worktree context
+          verify              Check the recorded base and bundle root
           --close [name]      Close and remove a worktree
           --init <name>       Initialize a worktree (usually called automatically)
           --help, -h          Show this help message
@@ -53,11 +69,11 @@ module RailsWorktree
 
         Arguments:
           <name>              Name of the worktree (required)
-          [base-branch]       Branch to create worktree from (default: current branch)
+          <base-branch>       Explicit branch or commit to create worktree from (required)
 
         Examples:
-          worktree feature-branch                  # Create new worktree
-          worktree feature-branch --skip-seeds     # Create without seeding database
+          worktree feature-branch origin/main      # Create from an explicit base
+          worktree feature-branch origin/main --skip-seeds     # Create without seeding database
           worktree --close feature-branch          # Close worktree from main repo
           worktree --close                         # Close worktree from within it
       USAGE

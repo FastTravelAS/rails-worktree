@@ -16,16 +16,7 @@ module RailsWorktree
         unless File.exist?(binstub_path)
           Rails.logger.info "Installing worktree binstub to bin/worktree..."
 
-          File.write(binstub_path, <<~RUBY)
-            #!/usr/bin/env ruby
-
-            require "bundler/setup"
-            require "rails-worktree"
-
-            RailsWorktree::CLI.run(ARGV)
-          RUBY
-
-          FileUtils.chmod("+x", binstub_path)
+          RailsWorktree::Launcher.install(Rails.root.to_s)
           Rails.logger.info "✓ Worktree binstub installed! Use: bin/worktree <name>"
         end
       end

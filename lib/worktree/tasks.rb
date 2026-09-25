@@ -3,21 +3,12 @@ namespace :worktree do
   task :install do
     binstub_path = File.join(Dir.pwd, "bin/worktree")
 
-    if File.exist?(binstub_path)
+    if File.exist?(binstub_path) && ENV["FORCE"] != "1"
       puts "Binstub already exists at bin/worktree"
       exit 0
     end
 
-    File.write(binstub_path, <<~RUBY)
-      #!/usr/bin/env ruby
-
-      require "bundler/setup"
-      require "rails-worktree"
-
-      RailsWorktree::CLI.run(ARGV)
-    RUBY
-
-    File.chmod(0755, binstub_path)
+    RailsWorktree::Launcher.install(Dir.pwd, replace: ENV["FORCE"] == "1")
 
     puts "✓ Worktree binstub installed to bin/worktree"
     puts "Usage: bin/worktree <name>"
