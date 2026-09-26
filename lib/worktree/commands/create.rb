@@ -34,7 +34,7 @@ module RailsWorktree
 
         raise Error, "Worktree name must stay inside .worktrees" unless absolute_path.start_with?(File.expand_path(worktree_dir) + File::SEPARATOR)
 
-        ensure_gitignored(worktree_dir)
+        Installer.ignore_worktrees(Dir.pwd)
         FileUtils.mkdir_p(worktree_dir)
 
         puts "Creating worktree '#{@worktree_name}' from branch '#{@base_branch}' at #{worktree_path}..."
@@ -53,7 +53,7 @@ module RailsWorktree
           created = Context.new
           created.record(@base_branch, base_commit, @worktree_name)
           created.verify
-          Launcher.install(created.root, replace: true)
+          Installer.install(created.root, replace: true)
           PushHook.install(created.root)
           Init.new([@worktree_name], skip_seeds: @skip_seeds).run
         end
@@ -63,17 +63,6 @@ module RailsWorktree
         puts "  cd #{absolute_path}"
         puts ""
         puts "To start the development server: bin/dev"
-      end
-
-      def ensure_gitignored(dir)
-        gitignore = ".gitignore"
-        pattern = "/#{dir}"
-
-        if File.exist?(gitignore)
-          return if File.readlines(gitignore).any? { |line| line.strip == pattern }
-        end
-
-        File.open(gitignore, "a") { |f| f.puts pattern }
       end
     end
   end

@@ -5,7 +5,7 @@ module RailsWorktree
     end
 
     def initialize(args)
-      @args = args
+      @args = args.dup
     end
 
     def run
@@ -14,13 +14,11 @@ module RailsWorktree
         exit 1
       end
 
-      if @args[0] == "exec"
-        @args.shift
-        return Commands::Exec.new(@args).run
-      end
-      if @args[0] == "verify"
-        Context.new.verify(push: @args.include?("--push"))
-        return
+      case @args.first
+      when "exec"
+        return Commands::Exec.new(@args.drop(1)).run
+      when "verify"
+        return Context.new.verify(push: @args.include?("--push"))
       end
 
       # Extract flags

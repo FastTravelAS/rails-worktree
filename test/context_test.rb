@@ -102,13 +102,18 @@ class ContextTest < Minitest::Test
     File.write(File.join(@main, "unrelated"), "unrelated commit")
     git(@main, "add", "unrelated")
     git(@main, "commit", "--quiet", "-m", "unrelated")
-    Dir.chdir(@main) { RailsWorktree::Commands::Create.new(["new-feature", @base]).run }
+    File.delete(File.join(@main, ".gitignore"))
+    Dir.chdir(File.join(@main, "bin")) { RailsWorktree::Commands::Create.new(["new-feature", @base]).run }
     created = RailsWorktree::Context.new(File.join(@main, ".worktrees/new-feature"))
     assert_equal File.join(created.root, "Gemfile"), File.read(File.join(created.root, "setup-context")).strip
     assert_equal @base, created.verify.fetch("commit")
     assert_equal @base, git(created.root, "rev-parse", "HEAD").strip
     refute File.exist?(File.join(created.root, "unrelated"))
     assert File.executable?(File.join(created.root, "bin/worktree"))
+    assert_equal "/.worktrees/\n", File.read(File.join(@main, ".gitignore"))
+    assert_equal ".worktrees/new-feature/\n", git(@main, "check-ignore", ".worktrees/new-feature/")
+    refute File.exist?(File.join(@directory, "new-feature"))
+    refute File.exist?(File.join(@main, "bin/.worktrees"))
     refute_includes git(created.root, "status", "--porcelain"), "rails-worktree.json"
   end
 

@@ -20,32 +20,10 @@ module RailsWorktree
     def verify(push: false)
       data = JSON.parse(File.read(metadata_path))
       raise Error, "Invalid worktree context in #{metadata_path}; expected an object with base, commit and branch." unless data.is_a?(Hash)
-      branch = git(root, "branch", "--show-current").strip
-      raise Error, "Worktree branch differs from recorded #{data.fetch("branch")}; switch back before continuing." unless branch == data.fetch("branch")
-      begin
-        git(root, "merge-base", "--is-ancestor", data.fetch("commit"), "HEAD")
-      rescue Error
-        raise Error, "Recorded base #{data.fetch("base")} is no longer an ancestor of HEAD. Rebase onto that base before continuing."
-      end
-      gemfile = File.join(root, "Gemfile")
-      raise Error, "Missing worktree Gemfile: #{gemfile}" unless File.file?(gemfile) && File.realpath(gemfile) == gemfile
-
-      output, error, status = Open3.capture3(environment, RbConfig.ruby, "-rbundler", "-e", "puts Bundler.root.realpath", chdir: root, unsetenv_others: true)
-      unless status.success? && output.strip == root
-        raise Error, "Bundle resolves outside this worktree or cannot load. Run through bin/worktree exec. #{error.strip}"
-      end
-      if push
-        unless $stdin.tty?
-          head = git(root, "rev-parse", "HEAD").strip
-          $stdin.each_line do |line|
-            _local_ref, sha, _remote_ref, _remote_sha = line.split
-            next if sha && sha.match?(/\A0+\z/)
-            raise Error, "Push includes a commit other than this worktree's HEAD. Push the current branch separately." unless sha == head
-          end
-        end
-        puts "Worktree base: #{data.fetch("base")} (#{data.fetch("commit")})"
-        puts git(root, "diff", "--stat", "#{data.fetch("commit")}...HEAD", "--")
-      end
+      verify_branch(data)
+      verify_base(data)
+      verify_bundle
+      verify_push(data) if push
       data
     rescue Errno::ENOENT, JSON::ParserError, KeyError => error
       raise Error, "Missing or invalid worktree context. Recreate with an explicit base using worktree NAME BASE. #{error.message}"
@@ -53,11 +31,10 @@ module RailsWorktree
 
     def environment
       env = Bundler.respond_to?(:unbundled_env) ? Bundler.unbundled_env : Bundler.clean_env
-      paths = git(root, "worktree", "list", "--porcelain").lines.grep(/^worktree /).map { |line| File.join(line.sub("worktree ", "").strip, "bin") }
-      env["PATH"] = ([File.join(root, "bin")] + env.fetch("PATH", "").split(File::PATH_SEPARATOR).reject { |path| paths.include?(path) || foreign_bin_directory?(path) }).uniq.join(File::PATH_SEPARATOR)
+      env["PATH"] = executable_path(env.fetch("PATH", ""))
       env["BUNDLE_GEMFILE"] = File.join(root, "Gemfile")
       env.delete("BUNDLE_BIN_PATH")
-      %w[GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR].each { |key| env.delete(key) }
+      GIT_ENVIRONMENT.each_key { |key| env.delete(key) }
       env
     end
 
@@ -81,6 +58,50 @@ module RailsWorktree
     end
 
     private
+
+    def executable_path(path)
+      worktree_bins = git(root, "worktree", "list", "--porcelain").lines.grep(/^worktree /).map do |line|
+        File.join(line.delete_prefix("worktree ").strip, "bin")
+      end
+      paths = path.split(File::PATH_SEPARATOR).reject do |directory|
+        worktree_bins.include?(directory) || foreign_bin_directory?(directory)
+      end
+      ([File.join(root, "bin")] + paths).uniq.join(File::PATH_SEPARATOR)
+    end
+
+    def verify_branch(data)
+      branch = git(root, "branch", "--show-current").strip
+      raise Error, "Worktree branch differs from recorded #{data.fetch("branch")}; switch back before continuing." unless branch == data.fetch("branch")
+    end
+
+    def verify_base(data)
+      git(root, "merge-base", "--is-ancestor", data.fetch("commit"), "HEAD")
+    rescue Error
+      raise Error, "Recorded base #{data.fetch("base")} is no longer an ancestor of HEAD. Rebase onto that base before continuing."
+    end
+
+    def verify_bundle
+      gemfile = File.join(root, "Gemfile")
+      raise Error, "Missing worktree Gemfile: #{gemfile}" unless File.file?(gemfile) && File.realpath(gemfile) == gemfile
+
+      output, error, status = Open3.capture3(environment, RbConfig.ruby, "-rbundler", "-e", "puts Bundler.root.realpath", chdir: root, unsetenv_others: true)
+      unless status.success? && output.strip == root
+        raise Error, "Bundle resolves outside this worktree or cannot load. Run through bin/worktree exec. #{error.strip}"
+      end
+    end
+
+    def verify_push(data)
+      unless $stdin.tty?
+        head = git(root, "rev-parse", "HEAD").strip
+        $stdin.each_line do |line|
+          _local_ref, sha, _remote_ref, _remote_sha = line.split
+          next if sha && sha.match?(/\A0+\z/)
+          raise Error, "Push includes a commit other than this worktree's HEAD. Push the current branch separately." unless sha == head
+        end
+      end
+      puts "Worktree base: #{data.fetch("base")} (#{data.fetch("commit")})"
+      puts git(root, "diff", "--stat", "#{data.fetch("commit")}...HEAD", "--")
+    end
 
     def foreign_bin_directory?(path)
       return false unless File.basename(path) == "bin" && File.directory?(path)

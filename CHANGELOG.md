@@ -19,7 +19,7 @@
 - **Breaking:** creation requires an explicit base (`worktree feature origin/main`) instead of inheriting the current branch.
 
 - Worktrees are now created inside `.worktrees/` in the project root instead of as sibling directories. This preserves tool config (mise, Claude Code, etc.) that depends on being inside the project tree
-- `.worktrees` is automatically added to `.gitignore` on first use
+- `.worktrees` is automatically added to `.gitignore` during installation and worktree creation, including when a launcher already exists.
 
 ## [0.1.6] - 2026-02-11
 

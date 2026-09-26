@@ -23,6 +23,8 @@ end
 ```
 
 Run `bundle install`. A binstub will be automatically created at `bin/worktree`.
+When Rails loads in development, installation also adds `/.worktrees/` to the project's
+`.gitignore`. The manual installer does the same, including when the binstub already exists.
 
 Manual binstub installation (if needed):
 ```bash
