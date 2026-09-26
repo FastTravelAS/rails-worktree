@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-26
+
 ### Added
 
 - `worktree exec -- COMMAND` and `worktree verify` enforce the recorded branch/base and worktree-local Bundler context.
