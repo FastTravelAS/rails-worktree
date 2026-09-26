@@ -1,26 +1,10 @@
 namespace :worktree do
-  desc "Install worktree binstub to bin/worktree"
+  desc "Install bin/worktree and ignore local .worktrees"
   task :install do
-    binstub_path = File.join(Dir.pwd, "bin/worktree")
+    RailsWorktree::Installer.install(Dir.pwd, replace: ENV["FORCE"] == "1")
 
-    if File.exist?(binstub_path)
-      puts "Binstub already exists at bin/worktree"
-      exit 0
-    end
-
-    File.write(binstub_path, <<~RUBY)
-      #!/usr/bin/env ruby
-
-      require "bundler/setup"
-      require "rails-worktree"
-
-      RailsWorktree::CLI.run(ARGV)
-    RUBY
-
-    File.chmod(0755, binstub_path)
-
-    puts "✓ Worktree binstub installed to bin/worktree"
-    puts "Usage: bin/worktree <name>"
+    puts "✓ bin/worktree is installed and .worktrees is ignored"
+    puts "Usage: bin/worktree <name> <base-branch>"
   end
 
   desc "Uninstall worktree binstub from bin/worktree"

@@ -25,6 +25,9 @@ module RailsWorktree
         puts "Development database: #{@dev_database_name}"
         puts "Test database: #{@test_database_name}"
 
+        @context = Context.new
+        @context_environment = @context.environment
+
         copy_config_files
         set_database_names
         update_database_yml
@@ -141,28 +144,34 @@ module RailsWorktree
       end
 
       def database_env
-        {
+        (@context_environment || {}).merge(
+          "BUNDLE_GEMFILE" => File.expand_path("Gemfile"),
           "DATABASE_NAME_DEVELOPMENT" => @dev_database_name,
           "DATABASE_NAME_TEST" => @test_database_name
-        }
+        )
+      end
+
+      def run_command(environment, *arguments)
+        command = @context ? @context.command(arguments) : arguments
+        system(environment, *command, unsetenv_others: !!@context_environment)
       end
 
       def setup_database
         if File.executable?("bin/setup")
           puts "Running bin/setup..."
-          system(database_env, "bin/setup") || puts("Warning: bin/setup failed")
+          run_command(database_env, "bin/setup") || puts("Warning: bin/setup failed")
         else
           puts "Creating databases..."
-          system(database_env.merge("RAILS_ENV" => "development"), "bin/rails", "db:create") || puts("Warning: Could not create development database")
-          system(database_env.merge("RAILS_ENV" => "test"), "bin/rails", "db:create") || puts("Warning: Could not create test database")
+          run_command(database_env.merge("RAILS_ENV" => "development"), "bin/rails", "db:create") || puts("Warning: Could not create development database")
+          run_command(database_env.merge("RAILS_ENV" => "test"), "bin/rails", "db:create") || puts("Warning: Could not create test database")
 
           puts "Running migrations..."
-          system(database_env.merge("RAILS_ENV" => "development"), "bin/rails", "db:migrate") || puts("Warning: Could not run migrations")
-          system(database_env.merge("RAILS_ENV" => "test"), "bin/rails", "db:migrate") || puts("Warning: Could not run test migrations")
+          run_command(database_env.merge("RAILS_ENV" => "development"), "bin/rails", "db:migrate") || puts("Warning: Could not run migrations")
+          run_command(database_env.merge("RAILS_ENV" => "test"), "bin/rails", "db:migrate") || puts("Warning: Could not run test migrations")
 
           unless @skip_seeds
             puts "Seeding development database..."
-            system(database_env.merge("RAILS_ENV" => "development"), "bin/rails", "db:seed") || puts("Warning: Could not seed database")
+            run_command(database_env.merge("RAILS_ENV" => "development"), "bin/rails", "db:seed") || puts("Warning: Could not seed database")
           else
             puts "Skipping database seeding..."
           end

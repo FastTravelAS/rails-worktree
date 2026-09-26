@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-26
+
+### Added
+
+- `worktree exec -- COMMAND` and `worktree verify` enforce the recorded branch/base and worktree-local Bundler context.
+- Worktree creation records its base in private Git metadata and installs a chaining pre-push verifier.
+- A shared launcher generator pins `BUNDLE_GEMFILE` before Ruby startup; `worktree:install FORCE=1` upgrades existing launchers.
+
 ### Fixed
 
 - Database name double-substitution when worktree name starts with "test" (e.g. `app_test-worktree_test-worktree_development`). Replaced sequential `gsub!` calls with single-pass `Regexp.union` replacement
@@ -10,8 +18,10 @@
 
 ### Changed
 
+- **Breaking:** creation requires an explicit base (`worktree feature origin/main`) instead of inheriting the current branch.
+
 - Worktrees are now created inside `.worktrees/` in the project root instead of as sibling directories. This preserves tool config (mise, Claude Code, etc.) that depends on being inside the project tree
-- `.worktrees` is automatically added to `.gitignore` on first use
+- `.worktrees` is automatically added to `.gitignore` during installation and worktree creation, including when a launcher already exists.
 
 ## [0.1.6] - 2026-02-11
 
