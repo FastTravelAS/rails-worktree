@@ -25,6 +25,9 @@
   `data` object, where herdr puts it, and runs `bin/worktree init` through `mise exec` when mise is
   installed, so herdr's inherited PATH cannot select another Ruby. Run `bin/worktree install --force`
   to regenerate the script.
+- `close NAME` run from inside another worktree closes the named worktree instead of the current one.
+  It used to drop the current worktree's databases, remove its checkout and fail to delete the named
+  branch. Unknown names now fail there too.
 
 ## [0.3.0] - 2026-10-06
 

@@ -93,6 +93,23 @@ class CloseTest < Minitest::Test
     Dir.chdir(@main) { assert_raises(RailsWorktree::Error) { RailsWorktree::Commands::Close.new(["missing"]).run } }
   end
 
+  def test_close_by_name_from_another_worktree_removes_only_the_named_one
+    other = File.join(@main, ".worktrees", "feature-y")
+    git(@main, "worktree", "add", "--quiet", "-b", "feature-y", other, "main")
+
+    Dir.chdir(other) { capture_io { RailsWorktree::Commands::Close.new(["feature-x"]).run } }
+
+    refute Dir.exist?(@worktree)
+    assert_empty git(@main, "branch", "--list", "feature-x")
+    assert Dir.exist?(other)
+    refute_empty git(@main, "branch", "--list", "feature-y")
+  end
+
+  def test_close_by_unknown_name_from_a_worktree_is_rejected
+    Dir.chdir(@worktree) { assert_raises(RailsWorktree::Error) { RailsWorktree::Commands::Close.new(["missing"]).run } }
+    assert Dir.exist?(@worktree)
+  end
+
   private
 
   def build_close
