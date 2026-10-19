@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    rails-worktree (0.3.0)
+    rails-worktree (0.3.1)
 
 GEM
   remote: https://rubygems.org/
@@ -21,7 +21,7 @@ DEPENDENCIES
 CHECKSUMS
   bundler (4.0.16) sha256=d6ca5dd440c24f9abce9844cf44cc8e18c6a553de65a47efb4544137af92c47d
   minitest (5.27.0) sha256=2d3b17f8a36fe7801c1adcffdbc38233b938eb0b4966e97a6739055a45fa77d5
-  rails-worktree (0.3.0)
+  rails-worktree (0.3.1)
   rake (13.3.1) sha256=8c9e89d09f66a26a01264e7e3480ec0607f0c497a861ef16063604b1b08eb19c
 
 BUNDLED WITH

@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-10-19
+
 ### Fixed
 
 - Works in a brand new Rails application. `init` probes how `config/database.yml` resolves before it
