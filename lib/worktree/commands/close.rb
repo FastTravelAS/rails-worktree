@@ -7,6 +7,7 @@ module RailsWorktree
     class Close
       def initialize(args)
         @worktree_name = args[0]
+        @named = !@worktree_name.nil?
         @main_worktree = get_main_worktree
         @current_dir = Dir.pwd
       end
@@ -33,7 +34,7 @@ module RailsWorktree
         puts "  Worktree removed from #{@worktree_path}"
         puts "  Branch #{@branch} deleted" if @branch_deleted
 
-        unless @in_main_repo
+        if @worktree_path == @current_dir
           puts ""
           puts "Run: cd #{@main_worktree}"
         end
@@ -57,16 +58,18 @@ module RailsWorktree
 
       # Finds the checkout in git's worktree list by directory name or branch, so
       # worktrees outside .worktrees/ (git worktree add, herdr, Claude Code) close too.
+      # An explicit name wins over the current directory, so closing another
+      # worktree from inside one leaves the current checkout alone.
       def detect_paths
         @in_main_repo = @current_dir == @main_worktree
         entries = worktree_entries.reject { |entry| entry[:path] == @main_worktree }
-        entry = if @in_main_repo
+        entry = if @named
           entries.find { |candidate| candidate[:path] == File.join(@main_worktree, ".worktrees", @worktree_name) } ||
             entries.find { |candidate| File.basename(candidate[:path]) == @worktree_name || candidate[:branch] == @worktree_name }
         else
           entries.find { |candidate| candidate[:path] == @current_dir }
         end
-        raise Error, "No worktree named #{@worktree_name}; see git worktree list." if @in_main_repo && !entry
+        raise Error, "No worktree named #{@worktree_name}; see git worktree list." if @named && !entry
 
         @worktree_path = entry ? entry[:path] : @current_dir
         @branch = entry ? entry[:branch] : @worktree_name
